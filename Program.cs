@@ -110,11 +110,6 @@ app.UseAuthorization();
 // Map controllers
 app.MapControllers();
 
-// Keep the hello endpoint as minimal API for simplicity
-app.MapGet("/hello", () => "Hello World!")
-.WithName("HelloWorld")
-.AllowAnonymous(); // Public endpoint
-
 try
 {
     Log.Information("Starting web application");

@@ -4,6 +4,7 @@ using FluentAssertions;
 using KestrelApi.Secrets;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -32,36 +33,37 @@ public class SecretsControllerTests
     }
 
     [Fact]
-    public async Task AddSecret_WithNullRequest_ShouldReturnBadRequest()
+    public async Task AddSecret_WithNullRequest_ShouldThrowArgumentNullException()
     {
         _sut.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var result = await _sut.AddSecret(null!);
+        var act = async () => await _sut.AddSecret(null!);
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("Request cannot be null");
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .WithMessage("Value cannot be null. (Parameter 'request')");
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public async Task AddSecret_WithInvalidSecret_ShouldReturnBadRequest(string? invalidSecret)
+    public async Task AddSecret_WithInvalidSecret_ShouldReturnValidationProblem(string? invalidSecret)
     {
         _sut.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
+        _sut.ModelState.AddModelError("Secret", "Secret is required");
 
-        var request = new SecretRequest(invalidSecret!);
+        var request = new SecretRequest { Secret = invalidSecret! };
 
         var result = await _sut.AddSecret(request);
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("Secret cannot be null or empty");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ValidationProblemDetails>();
     }
 
     [Fact]
@@ -72,12 +74,13 @@ public class SecretsControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithoutId }
         };
 
-        var request = new SecretRequest("my-secret");
+        var request = new SecretRequest { Secret = "my-secret" };
 
         var result = await _sut.AddSecret(request);
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("User ID not found in token");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("User ID not found in token");
     }
 
     [Fact]
@@ -88,7 +91,7 @@ public class SecretsControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var request = new SecretRequest("my-secret");
+        var request = new SecretRequest { Secret = "my-secret" };
         _serviceMock
             .Setup(x => x.AddSecretAsync("user123", "my-secret"))
             .ReturnsAsync("secret-id");
@@ -108,15 +111,16 @@ public class SecretsControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var request = new SecretRequest("my-secret");
+        var request = new SecretRequest { Secret = "my-secret" };
         _serviceMock
             .Setup(x => x.AddSecretAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new ArgumentNullException());
 
         var result = await _sut.AddSecret(request);
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("Invalid request data");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("Invalid request data");
     }
 
     [Fact]
@@ -127,7 +131,7 @@ public class SecretsControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var request = new SecretRequest("my-secret");
+        var request = new SecretRequest { Secret = "my-secret" };
         _serviceMock
             .Setup(x => x.AddSecretAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new CryptographicException());
@@ -136,7 +140,8 @@ public class SecretsControllerTests
 
         result.Should().BeOfType<ObjectResult>()
             .Which.StatusCode.Should().Be(500);
-        result.As<ObjectResult>().Value.Should().Be("Failed to encrypt secret");
+        result.As<ObjectResult>().Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("Failed to encrypt data");
     }
 
     [Fact]
@@ -147,7 +152,7 @@ public class SecretsControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var request = new SecretRequest("my-secret");
+        var request = new SecretRequest { Secret = "my-secret" };
         _serviceMock
             .Setup(x => x.AddSecretAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException());
@@ -156,7 +161,8 @@ public class SecretsControllerTests
 
         result.Should().BeOfType<ObjectResult>()
             .Which.StatusCode.Should().Be(500);
-        result.As<ObjectResult>().Value.Should().Be("An error occurred while storing the secret");
+        result.As<ObjectResult>().Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("An error occurred while processing your request");
     }
 
     [Fact]
@@ -169,8 +175,9 @@ public class SecretsControllerTests
 
         var result = await _sut.GetSecrets();
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("User ID not found in token");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("User ID not found in token");
     }
 
     [Fact]
@@ -207,8 +214,9 @@ public class SecretsControllerTests
 
         var result = await _sut.GetSecrets();
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("Invalid request");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("Invalid request data");
     }
 
     [Fact]
@@ -227,7 +235,8 @@ public class SecretsControllerTests
 
         result.Should().BeOfType<ObjectResult>()
             .Which.StatusCode.Should().Be(500);
-        result.As<ObjectResult>().Value.Should().Be("Failed to decrypt secrets");
+        result.As<ObjectResult>().Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("Failed to decrypt data");
     }
 
     [Fact]
@@ -246,6 +255,7 @@ public class SecretsControllerTests
 
         result.Should().BeOfType<ObjectResult>()
             .Which.StatusCode.Should().Be(500);
-        result.As<ObjectResult>().Value.Should().Be("An error occurred while retrieving secrets");
+        result.As<ObjectResult>().Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("An error occurred while processing your request");
     }
 }

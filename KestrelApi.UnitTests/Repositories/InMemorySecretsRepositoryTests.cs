@@ -13,71 +13,71 @@ public class InMemorySecretsRepositoryTests
     }
 
     [Fact]
-    public async Task AddAsync_ShouldStoreEncryptedSecretAndReturnIt()
+    public void Add_ShouldStoreEncryptedSecretAndReturnIt()
     {
         var userId = "user123";
         var encryptedSecret = "encrypted-secret-data";
 
-        var result = await _sut.AddAsync(userId, encryptedSecret);
+        var result = _sut.Add(userId, encryptedSecret);
 
         result.Should().Be(encryptedSecret);
     }
 
     [Fact]
-    public async Task AddAsync_ShouldStoreMultipleSecretsForSameUser()
+    public void Add_ShouldStoreMultipleSecretsForSameUser()
     {
         var userId = "user123";
         var secrets = new[] { "encrypted1", "encrypted2", "encrypted3" };
 
         foreach (var secret in secrets)
         {
-            await _sut.AddAsync(userId, secret);
+            _sut.Add(userId, secret);
         }
 
-        var storedSecrets = await _sut.GetByUserIdAsync(userId);
+        var storedSecrets = _sut.GetByUserId(userId);
         storedSecrets.Should().BeEquivalentTo(secrets);
     }
 
     [Fact]
-    public async Task AddAsync_ShouldStoreSecretsSeparatelyForDifferentUsers()
+    public void Add_ShouldStoreSecretsSeparatelyForDifferentUsers()
     {
         var user1 = "user123";
         var user2 = "user456";
         var secret1 = "encrypted-secret-1";
         var secret2 = "encrypted-secret-2";
 
-        await _sut.AddAsync(user1, secret1);
-        await _sut.AddAsync(user2, secret2);
+        _sut.Add(user1, secret1);
+        _sut.Add(user2, secret2);
 
-        var user1Secrets = await _sut.GetByUserIdAsync(user1);
-        var user2Secrets = await _sut.GetByUserIdAsync(user2);
+        var user1Secrets = _sut.GetByUserId(user1);
+        var user2Secrets = _sut.GetByUserId(user2);
 
         user1Secrets.Should().BeEquivalentTo(new[] { secret1 });
         user2Secrets.Should().BeEquivalentTo(new[] { secret2 });
     }
 
     [Fact]
-    public async Task GetByUserIdAsync_WithNoSecretsStored_ShouldReturnEmptyCollection()
+    public void GetByUserId_WithNoSecretsStored_ShouldReturnEmptyCollection()
     {
         var userId = "nonexistent";
 
-        var result = await _sut.GetByUserIdAsync(userId);
+        var result = _sut.GetByUserId(userId);
 
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task GetByUserIdAsync_ShouldReturnAllSecretsForUser()
+    public void GetByUserId_ShouldReturnAllSecretsForUser()
     {
         var userId = "user123";
         var secrets = new[] { "encrypted1", "encrypted2", "encrypted3" };
 
         foreach (var secret in secrets)
         {
-            await _sut.AddAsync(userId, secret);
+            _sut.Add(userId, secret);
         }
 
-        var result = await _sut.GetByUserIdAsync(userId);
+        var result = _sut.GetByUserId(userId);
 
         result.Should().BeEquivalentTo(secrets);
     }
@@ -91,53 +91,53 @@ public class InMemorySecretsRepositoryTests
         for (int i = 0; i < 100; i++)
         {
             var secret = $"encrypted-secret-{i}";
-            tasks.Add(Task.Run(async () => await _sut.AddAsync(userId, secret)));
+            tasks.Add(Task.Run(() => _sut.Add(userId, secret)));
         }
 
         await Task.WhenAll(tasks);
 
-        var storedSecrets = await _sut.GetByUserIdAsync(userId);
+        var storedSecrets = _sut.GetByUserId(userId);
         storedSecrets.Should().HaveCount(100);
     }
 
     [Fact]
-    public async Task AddAsync_WithEmptyUserId_ShouldStoreSuccessfully()
+    public void Add_WithEmptyUserId_ShouldStoreSuccessfully()
     {
         var userId = "";
         var encryptedSecret = "encrypted-data";
 
-        var result = await _sut.AddAsync(userId, encryptedSecret);
+        var result = _sut.Add(userId, encryptedSecret);
 
         result.Should().Be(encryptedSecret);
-        var storedSecrets = await _sut.GetByUserIdAsync(userId);
+        var storedSecrets = _sut.GetByUserId(userId);
         storedSecrets.Should().ContainSingle().Which.Should().Be(encryptedSecret);
     }
 
     [Fact]
-    public async Task AddAsync_WithEmptyEncryptedSecret_ShouldStoreSuccessfully()
+    public void Add_WithEmptyEncryptedSecret_ShouldStoreSuccessfully()
     {
         var userId = "user123";
         var encryptedSecret = "";
 
-        var result = await _sut.AddAsync(userId, encryptedSecret);
+        var result = _sut.Add(userId, encryptedSecret);
 
         result.Should().Be(encryptedSecret);
-        var storedSecrets = await _sut.GetByUserIdAsync(userId);
+        var storedSecrets = _sut.GetByUserId(userId);
         storedSecrets.Should().ContainSingle().Which.Should().Be(encryptedSecret);
     }
 
     [Fact]
-    public async Task AddAsync_ShouldMaintainOrderOfSecrets()
+    public void Add_ShouldMaintainOrderOfSecrets()
     {
         var userId = "user123";
         var secrets = new[] { "first", "second", "third", "fourth", "fifth" };
 
         foreach (var secret in secrets)
         {
-            await _sut.AddAsync(userId, secret);
+            _sut.Add(userId, secret);
         }
 
-        var storedSecrets = await _sut.GetByUserIdAsync(userId);
+        var storedSecrets = _sut.GetByUserId(userId);
         
         storedSecrets.Should().HaveCount(5);
         storedSecrets.Should().BeEquivalentTo(secrets);

@@ -130,7 +130,6 @@ docker run -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Production kestrelapi
 
 ### Public Endpoints
 
-- `GET /hello` - Simple hello world endpoint
 - `GET /health` - Overall health status
 - `GET /health/ready` - Readiness probe
 - `GET /health/live` - Liveness probe

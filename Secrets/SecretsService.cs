@@ -24,8 +24,8 @@ public class SecretsService : ISecretsService
         try
         {
             _logger.LogInformation("Adding secret for user {UserId}", userId);
-            var encrypted = await _encryptionService.EncryptAsync(secret).ConfigureAwait(false);
-            var result = await _repository.AddAsync(userId, encrypted).ConfigureAwait(false);
+            var encrypted = await _encryptionService.EncryptAsync(secret);
+            var result = await Task.Run(() => _repository.Add(userId, encrypted));
             _logger.LogInformation("Secret added successfully for user {UserId}", userId);
             return result;
         }
@@ -51,12 +51,12 @@ public class SecretsService : ISecretsService
         try
         {
             _logger.LogInformation("Retrieving secrets for user {UserId}", userId);
-            var encryptedSecrets = await _repository.GetByUserIdAsync(userId).ConfigureAwait(false);
+            var encryptedSecrets = await Task.Run(() => _repository.GetByUserId(userId));
             
             var decryptedSecrets = new List<string>();
             foreach (var encryptedSecret in encryptedSecrets)
             {
-                var decrypted = await _encryptionService.DecryptAsync(encryptedSecret).ConfigureAwait(false);
+                var decrypted = await _encryptionService.DecryptAsync(encryptedSecret);
                 decryptedSecrets.Add(decrypted);
             }
             

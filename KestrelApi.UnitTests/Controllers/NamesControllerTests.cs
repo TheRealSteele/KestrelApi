@@ -3,6 +3,7 @@ using FluentAssertions;
 using KestrelApi.Names;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -31,36 +32,37 @@ public class NamesControllerTests
     }
 
     [Fact]
-    public async Task AddName_WithNullRequest_ShouldReturnBadRequest()
+    public async Task AddName_WithNullRequest_ShouldThrowArgumentNullException()
     {
         _sut.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var result = await _sut.AddName(null!);
+        var act = async () => await _sut.AddName(null!);
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("Request cannot be null");
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .WithMessage("Value cannot be null. (Parameter 'request')");
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public async Task AddName_WithInvalidName_ShouldReturnBadRequest(string? invalidName)
+    public async Task AddName_WithInvalidName_ShouldReturnValidationProblem(string? invalidName)
     {
         _sut.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
+        _sut.ModelState.AddModelError("Name", "Name is required");
 
-        var request = new NameRequest(invalidName!);
+        var request = new NameRequest { Name = invalidName! };
 
         var result = await _sut.AddName(request);
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("Name cannot be null or empty");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ValidationProblemDetails>();
     }
 
     [Fact]
@@ -71,12 +73,13 @@ public class NamesControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithoutId }
         };
 
-        var request = new NameRequest("John Doe");
+        var request = new NameRequest { Name = "John Doe" };
 
         var result = await _sut.AddName(request);
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("User ID not found in token");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("User ID not found in token");
     }
 
     [Fact]
@@ -87,7 +90,7 @@ public class NamesControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var request = new NameRequest("John Doe");
+        var request = new NameRequest { Name = "John Doe" };
         _serviceMock
             .Setup(x => x.AddNameAsync("user123", "John Doe"))
             .ReturnsAsync("name-id");
@@ -107,15 +110,16 @@ public class NamesControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var request = new NameRequest("John Doe");
+        var request = new NameRequest { Name = "John Doe" };
         _serviceMock
             .Setup(x => x.AddNameAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new ArgumentNullException());
 
         var result = await _sut.AddName(request);
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("Invalid request data");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("Invalid request data");
     }
 
     [Fact]
@@ -126,7 +130,7 @@ public class NamesControllerTests
             HttpContext = new DefaultHttpContext { User = _userWithId }
         };
 
-        var request = new NameRequest("John Doe");
+        var request = new NameRequest { Name = "John Doe" };
         _serviceMock
             .Setup(x => x.AddNameAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException());
@@ -135,7 +139,8 @@ public class NamesControllerTests
 
         result.Should().BeOfType<ObjectResult>()
             .Which.StatusCode.Should().Be(500);
-        result.As<ObjectResult>().Value.Should().Be("An error occurred while storing the name");
+        result.As<ObjectResult>().Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("An error occurred while processing your request");
     }
 
     [Fact]
@@ -148,8 +153,9 @@ public class NamesControllerTests
 
         var result = await _sut.GetNames();
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("User ID not found in token");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("User ID not found in token");
     }
 
     [Fact]
@@ -186,8 +192,9 @@ public class NamesControllerTests
 
         var result = await _sut.GetNames();
 
-        result.Should().BeOfType<BadRequestObjectResult>()
-            .Which.Value.Should().Be("Invalid request");
+        result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("Invalid request data");
     }
 
     [Fact]
@@ -206,6 +213,7 @@ public class NamesControllerTests
 
         result.Should().BeOfType<ObjectResult>()
             .Which.StatusCode.Should().Be(500);
-        result.As<ObjectResult>().Value.Should().Be("An error occurred while retrieving names");
+        result.As<ObjectResult>().Value.Should().BeOfType<ProblemDetails>()
+            .Which.Detail.Should().Be("An error occurred while processing your request");
     }
 }

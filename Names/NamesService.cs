@@ -18,7 +18,7 @@ public class NamesService : INamesService
         try
         {
             _logger.LogInformation("Adding name for user {UserId}", userId);
-            var result = await _repository.AddAsync(userId, name).ConfigureAwait(false);
+            var result = await Task.Run(() => _repository.Add(userId, name));
             _logger.LogInformation("Name added successfully for user {UserId}", userId);
             return result;
         }
@@ -39,7 +39,7 @@ public class NamesService : INamesService
         try
         {
             _logger.LogInformation("Retrieving names for user {UserId}", userId);
-            var names = await _repository.GetByUserIdAsync(userId).ConfigureAwait(false);
+            var names = await Task.Run(() => _repository.GetByUserId(userId));
             var namesList = names.ToList();
             _logger.LogInformation("Retrieved {Count} names for user {UserId}", namesList.Count, userId);
             return namesList;

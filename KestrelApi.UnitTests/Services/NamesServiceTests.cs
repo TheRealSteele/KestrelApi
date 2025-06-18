@@ -26,13 +26,13 @@ public class NamesServiceTests
         var expectedId = "name-id-123";
 
         _repositoryMock
-            .Setup(x => x.AddAsync(userId, name))
-            .ReturnsAsync(expectedId);
+            .Setup(x => x.Add(userId, name))
+            .Returns(expectedId);
 
         var result = await _sut.AddNameAsync(userId, name);
 
         result.Should().Be(expectedId);
-        _repositoryMock.Verify(x => x.AddAsync(userId, name), Times.Once);
+        _repositoryMock.Verify(x => x.Add(userId, name), Times.Once);
     }
 
     [Fact]
@@ -42,8 +42,8 @@ public class NamesServiceTests
         var name = "John Doe";
 
         _repositoryMock
-            .Setup(x => x.AddAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ThrowsAsync(new ArgumentNullException());
+            .Setup(x => x.Add(It.IsAny<string>(), It.IsAny<string>()))
+            .Throws(new ArgumentNullException());
 
         var act = async () => await _sut.AddNameAsync(userId, name);
 
@@ -57,8 +57,8 @@ public class NamesServiceTests
         var name = "John Doe";
 
         _repositoryMock
-            .Setup(x => x.AddAsync(userId, name))
-            .ThrowsAsync(new InvalidOperationException());
+            .Setup(x => x.Add(userId, name))
+            .Throws(new InvalidOperationException());
 
         var act = async () => await _sut.AddNameAsync(userId, name);
 
@@ -72,13 +72,13 @@ public class NamesServiceTests
         var names = new[] { "John Doe", "Jane Smith", "Bob Johnson" };
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(userId))
-            .ReturnsAsync(names);
+            .Setup(x => x.GetByUserId(userId))
+            .Returns(names);
 
         var result = await _sut.GetNamesAsync(userId);
 
         result.Should().BeEquivalentTo(names);
-        _repositoryMock.Verify(x => x.GetByUserIdAsync(userId), Times.Once);
+        _repositoryMock.Verify(x => x.GetByUserId(userId), Times.Once);
     }
 
     [Fact]
@@ -88,8 +88,8 @@ public class NamesServiceTests
         var names = Array.Empty<string>();
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(userId))
-            .ReturnsAsync(names);
+            .Setup(x => x.GetByUserId(userId))
+            .Returns(names);
 
         var result = await _sut.GetNamesAsync(userId);
 
@@ -102,8 +102,8 @@ public class NamesServiceTests
         var userId = "user123";
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(It.IsAny<string>()))
-            .ThrowsAsync(new ArgumentNullException());
+            .Setup(x => x.GetByUserId(It.IsAny<string>()))
+            .Throws(new ArgumentNullException());
 
         var act = async () => await _sut.GetNamesAsync(userId);
 
@@ -116,8 +116,8 @@ public class NamesServiceTests
         var userId = "user123";
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(userId))
-            .ThrowsAsync(new InvalidOperationException());
+            .Setup(x => x.GetByUserId(userId))
+            .Throws(new InvalidOperationException());
 
         var act = async () => await _sut.GetNamesAsync(userId);
 

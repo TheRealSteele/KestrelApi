@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Net.Http;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -37,6 +39,9 @@ public class KestrelApiFactory : WebApplicationFactory<Program>
 
             // Re-add authorization services
             services.AddAuthorization();
+            
+            // Mock HttpClient for Auth0 health check
+            services.AddSingleton<IHttpClientFactory>(new TestHttpClientFactory());
         });
 
         builder.UseEnvironment("Test");

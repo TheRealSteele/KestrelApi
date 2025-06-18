@@ -35,14 +35,14 @@ public class SecretsServiceTests
             .ReturnsAsync(encryptedSecret);
 
         _repositoryMock
-            .Setup(x => x.AddAsync(userId, encryptedSecret))
-            .ReturnsAsync(expectedId);
+            .Setup(x => x.Add(userId, encryptedSecret))
+            .Returns(expectedId);
 
         var result = await _sut.AddSecretAsync(userId, secret);
 
         result.Should().Be(expectedId);
         _encryptionServiceMock.Verify(x => x.EncryptAsync(secret), Times.Once);
-        _repositoryMock.Verify(x => x.AddAsync(userId, encryptedSecret), Times.Once);
+        _repositoryMock.Verify(x => x.Add(userId, encryptedSecret), Times.Once);
     }
 
     [Fact]
@@ -87,8 +87,8 @@ public class SecretsServiceTests
             .ReturnsAsync(encryptedSecret);
 
         _repositoryMock
-            .Setup(x => x.AddAsync(userId, encryptedSecret))
-            .ThrowsAsync(new InvalidOperationException());
+            .Setup(x => x.Add(userId, encryptedSecret))
+            .Throws(new InvalidOperationException());
 
         var act = async () => await _sut.AddSecretAsync(userId, secret);
 
@@ -103,8 +103,8 @@ public class SecretsServiceTests
         var decryptedSecrets = new[] { "secret1", "secret2", "secret3" };
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(userId))
-            .ReturnsAsync(encryptedSecrets);
+            .Setup(x => x.GetByUserId(userId))
+            .Returns(encryptedSecrets);
 
         _encryptionServiceMock
             .Setup(x => x.DecryptAsync("encrypted1"))
@@ -119,7 +119,7 @@ public class SecretsServiceTests
         var result = await _sut.GetSecretsAsync(userId);
 
         result.Should().BeEquivalentTo(decryptedSecrets);
-        _repositoryMock.Verify(x => x.GetByUserIdAsync(userId), Times.Once);
+        _repositoryMock.Verify(x => x.GetByUserId(userId), Times.Once);
         _encryptionServiceMock.Verify(x => x.DecryptAsync(It.IsAny<string>()), Times.Exactly(3));
     }
 
@@ -130,8 +130,8 @@ public class SecretsServiceTests
         var encryptedSecrets = Array.Empty<string>();
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(userId))
-            .ReturnsAsync(encryptedSecrets);
+            .Setup(x => x.GetByUserId(userId))
+            .Returns(encryptedSecrets);
 
         var result = await _sut.GetSecretsAsync(userId);
 
@@ -145,8 +145,8 @@ public class SecretsServiceTests
         var userId = "user123";
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(It.IsAny<string>()))
-            .ThrowsAsync(new ArgumentNullException());
+            .Setup(x => x.GetByUserId(It.IsAny<string>()))
+            .Throws(new ArgumentNullException());
 
         var act = async () => await _sut.GetSecretsAsync(userId);
 
@@ -160,8 +160,8 @@ public class SecretsServiceTests
         var encryptedSecrets = new[] { "encrypted1" };
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(userId))
-            .ReturnsAsync(encryptedSecrets);
+            .Setup(x => x.GetByUserId(userId))
+            .Returns(encryptedSecrets);
 
         _encryptionServiceMock
             .Setup(x => x.DecryptAsync(It.IsAny<string>()))
@@ -178,8 +178,8 @@ public class SecretsServiceTests
         var userId = "user123";
 
         _repositoryMock
-            .Setup(x => x.GetByUserIdAsync(userId))
-            .ThrowsAsync(new InvalidOperationException());
+            .Setup(x => x.GetByUserId(userId))
+            .Throws(new InvalidOperationException());
 
         var act = async () => await _sut.GetSecretsAsync(userId);
 

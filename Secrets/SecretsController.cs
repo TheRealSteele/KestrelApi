@@ -5,40 +5,35 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace KestrelApi.Secrets;
 
-[ApiController]
 [Route("secrets")]
 [Authorize]
-public class SecretsController : ControllerBase
+public class SecretsController : SecretsBaseController
 {
     private readonly ISecretsService _secretsService;
-    private readonly ILogger<SecretsController> _logger;
 
     public SecretsController(ISecretsService secretsService, ILogger<SecretsController> logger)
+        : base(logger)
     {
+        ArgumentNullException.ThrowIfNull(secretsService);
         _secretsService = secretsService;
-        _logger = logger;
     }
 
     [HttpPost]
     [Authorize(Policy = "WriteSecrets")]
     public async Task<IActionResult> AddSecret([FromBody] SecretRequest request)
     {
-        if (request == null)
+        if (!ModelState.IsValid)
         {
-            return BadRequest("Request cannot be null");
+            return ValidationProblem();
         }
         
-        if (string.IsNullOrWhiteSpace(request.Secret))
+        var validationResult = ValidateUserIdAndRequest(request);
+        if (validationResult is not OkObjectResult okResult)
         {
-            return BadRequest("Secret cannot be null or empty");
+            return validationResult;
         }
-
-        // Get user ID from claims
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return BadRequest("User ID not found in token");
-        }
+        
+        var userId = (string)okResult.Value!;
 
         try
         {
@@ -47,29 +42,29 @@ public class SecretsController : ControllerBase
         }
         catch (ArgumentNullException ex)
         {
-            _logger.LogError(ex, "Null argument while adding secret for user {UserId}", userId);
-            return BadRequest("Invalid request data");
+            return HandleException(ex, userId, "adding secret");
         }
         catch (CryptographicException ex)
         {
-            _logger.LogError(ex, "Encryption failed while adding secret for user {UserId}", userId);
-            return StatusCode(500, "Failed to encrypt secret");
+            return HandleException(ex, userId, "adding secret");
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Invalid operation while adding secret for user {UserId}", userId);
-            return StatusCode(500, "An error occurred while storing the secret");
+            return HandleException(ex, userId, "adding secret");
         }
     }
 
     [HttpGet]
     public async Task<IActionResult> GetSecrets()
     {
-        // Get user ID from claims
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = GetUserId();
         if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest("User ID not found in token");
+            return Problem(
+                detail: "User ID not found in token",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request"
+            );
         }
 
         try
@@ -79,18 +74,15 @@ public class SecretsController : ControllerBase
         }
         catch (ArgumentNullException ex)
         {
-            _logger.LogError(ex, "Null argument while retrieving secrets for user {UserId}", userId);
-            return BadRequest("Invalid request");
+            return HandleException(ex, userId, "retrieving secrets");
         }
         catch (CryptographicException ex)
         {
-            _logger.LogError(ex, "Decryption failed while retrieving secrets for user {UserId}", userId);
-            return StatusCode(500, "Failed to decrypt secrets");
+            return HandleException(ex, userId, "retrieving secrets");
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Invalid operation while retrieving secrets for user {UserId}", userId);
-            return StatusCode(500, "An error occurred while retrieving secrets");
+            return HandleException(ex, userId, "retrieving secrets");
         }
     }
 }

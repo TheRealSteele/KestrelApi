@@ -1,42 +1,38 @@
 using System.Security.Claims;
+using KestrelApi.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KestrelApi.Names;
 
-[ApiController]
 [Route("names")]
 [Authorize]
-public class NamesController : ControllerBase
+public class NamesController : BaseApiController
 {
     private readonly INamesService _namesService;
-    private readonly ILogger<NamesController> _logger;
 
     public NamesController(INamesService namesService, ILogger<NamesController> logger)
+        : base(logger)
     {
+        ArgumentNullException.ThrowIfNull(namesService);
         _namesService = namesService;
-        _logger = logger;
     }
 
     [HttpPost]
     public async Task<IActionResult> AddName([FromBody] NameRequest request)
     {
-        if (request == null)
+        if (!ModelState.IsValid)
         {
-            return BadRequest("Request cannot be null");
+            return ValidationProblem();
         }
         
-        if (string.IsNullOrWhiteSpace(request.Name))
+        var validationResult = ValidateUserIdAndRequest(request);
+        if (validationResult is not OkObjectResult okResult)
         {
-            return BadRequest("Name cannot be null or empty");
+            return validationResult;
         }
-
-        // Get user ID from claims
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return BadRequest("User ID not found in token");
-        }
+        
+        var userId = (string)okResult.Value!;
 
         try
         {
@@ -45,24 +41,25 @@ public class NamesController : ControllerBase
         }
         catch (ArgumentNullException ex)
         {
-            _logger.LogError(ex, "Null argument while adding name for user {UserId}", userId);
-            return BadRequest("Invalid request data");
+            return HandleException(ex, userId, "adding name");
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Invalid operation while adding name for user {UserId}", userId);
-            return StatusCode(500, "An error occurred while storing the name");
+            return HandleException(ex, userId, "adding name");
         }
     }
 
     [HttpGet]
     public async Task<IActionResult> GetNames()
     {
-        // Get user ID from claims
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = GetUserId();
         if (string.IsNullOrEmpty(userId))
         {
-            return BadRequest("User ID not found in token");
+            return Problem(
+                detail: "User ID not found in token",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request"
+            );
         }
 
         try
@@ -72,13 +69,11 @@ public class NamesController : ControllerBase
         }
         catch (ArgumentNullException ex)
         {
-            _logger.LogError(ex, "Null argument while retrieving names for user {UserId}", userId);
-            return BadRequest("Invalid request");
+            return HandleException(ex, userId, "retrieving names");
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogError(ex, "Invalid operation while retrieving names for user {UserId}", userId);
-            return StatusCode(500, "An error occurred while retrieving names");
+            return HandleException(ex, userId, "retrieving names");
         }
     }
 }

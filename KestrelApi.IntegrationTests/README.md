@@ -9,7 +9,7 @@ This project contains integration tests for the KestrelApi using xUnit and ASP.N
   - `IntegrationTestBase.cs` - Base class for all integration tests
   
 - **Endpoints/**
-  - `HelloEndpointTests.cs` - Tests for the /hello endpoint
+  - Tests for various API endpoints
 
 ## Running Tests
 
@@ -29,10 +29,11 @@ dotnet test --logger "console;verbosity=detailed"
 ## Test Coverage
 
 The integration tests verify:
-- ✅ HTTP GET /hello returns "Hello World!" with 200 OK
+- ✅ Authentication and authorization flows
 - ✅ Correct content-type headers
 - ✅ 404 responses for non-existent endpoints
-- ✅ 405 Method Not Allowed for non-GET methods on /hello
+- ✅ User data isolation
+- ✅ Permission-based access control
 
 ## Dependencies
 
