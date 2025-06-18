@@ -1,0 +1,57 @@
+using System.Linq;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+
+namespace KestrelApi.IntegrationTests.Infrastructure;
+
+public class KestrelApiFactory : WebApplicationFactory<Program>
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.ConfigureTestServices(services =>
+        {
+            // Remove the existing JWT Bearer authentication
+            var descriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IAuthenticationSchemeProvider));
+            
+            if (descriptor != null)
+            {
+                services.Remove(descriptor);
+            }
+
+            // Remove JWT Bearer specific services
+            services.RemoveAll(typeof(IPostConfigureOptions<JwtBearerOptions>));
+
+            // Add test authentication
+            services.AddAuthentication(TestAuthHandler.AuthenticationScheme)
+                .AddScheme<TestAuthHandlerOptions, TestAuthHandler>(
+                    TestAuthHandler.AuthenticationScheme, 
+                    options => { });
+
+            // Re-add authorization services
+            services.AddAuthorization();
+        });
+
+        builder.UseEnvironment("Test");
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        
+        // Ensure we can override configuration for tests
+        builder.ConfigureHostConfiguration(config =>
+        {
+            // Add test-specific configuration here if needed
+        });
+
+        return base.CreateHost(builder);
+    }
+}
