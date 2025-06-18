@@ -10,7 +10,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
+using Serilog.Events;
 
 namespace KestrelApi.IntegrationTests.Infrastructure;
 
@@ -52,17 +55,49 @@ public class KestrelApiFactory : WebApplicationFactory<Program>
     {
         ArgumentNullException.ThrowIfNull(builder);
         
-        // Ensure we can override configuration for tests
+        // Configure test logging first to prevent conflicts
+        var testLogger = new LoggerConfiguration()
+            .MinimumLevel.Warning() // Reduce noise in tests
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Error)
+            .MinimumLevel.Override("System", LogEventLevel.Error)
+            .WriteTo.Console(formatProvider: System.Globalization.CultureInfo.InvariantCulture)
+            .CreateLogger();
+            
+        Log.Logger = testLogger;
+        
+        // Configure test-specific settings
         builder.ConfigureHostConfiguration(config =>
         {
             // Add test Auth0 configuration
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Auth0:Domain"] = "https://test-tenant.auth0.com/",
-                ["Auth0:Audience"] = "https://test-api-identifier"
+                ["Auth0:Audience"] = "https://test-api-identifier",
+                // Override Serilog settings for tests
+                ["Serilog:MinimumLevel:Default"] = "Warning",
+                ["Serilog:MinimumLevel:Override:Microsoft"] = "Error",
+                ["Serilog:MinimumLevel:Override:System"] = "Error"
             });
         });
 
+        // Configure logging for tests
+        builder.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.AddSerilog(testLogger, dispose: false);
+        });
+
         return base.CreateHost(builder);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // Clean up Serilog to prevent conflicts between tests
+            Log.CloseAndFlush();
+        }
+        
+        base.Dispose(disposing);
     }
 }

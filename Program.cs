@@ -8,8 +8,11 @@ using Serilog.Events;
 using Serilog.Formatting.Compact;
 using System.Threading.RateLimiting;
 
-// Configure Serilog early - check if already configured for tests
-if (Log.Logger == null || Log.Logger.GetType().Name == "SilentLogger")
+// Configure Serilog early - but skip if running in test environment
+var isTestEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Test" ||
+                        Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+
+if (!isTestEnvironment && (Log.Logger == null || Log.Logger.GetType().Name == "SilentLogger"))
 {
     Log.Logger = new LoggerConfiguration()
         .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -20,21 +23,24 @@ if (Log.Logger == null || Log.Logger.GetType().Name == "SilentLogger")
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
-builder.Host.UseSerilog((context, services, configuration) => configuration
-    .ReadFrom.Configuration(context.Configuration)
-    .ReadFrom.Services(services)
-    .Enrich.FromLogContext()
-    .Enrich.WithMachineName()
-    .Enrich.WithThreadId()
-    .Enrich.WithProperty("Application", "KestrelApi")
-    .WriteTo.Console(new RenderedCompactJsonFormatter())
-    .WriteTo.File(new CompactJsonFormatter(), 
-        "logs/log-.json", 
-        rollingInterval: RollingInterval.Day,
-        rollOnFileSizeLimit: true,
-        fileSizeLimitBytes: 10 * 1024 * 1024,
-        retainedFileCountLimit: 30));
+// Configure Serilog - skip if in test environment to avoid conflicts
+if (!isTestEnvironment)
+{
+    builder.Host.UseSerilog((context, services, configuration) => configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .Enrich.WithMachineName()
+        .Enrich.WithThreadId()
+        .Enrich.WithProperty("Application", "KestrelApi")
+        .WriteTo.Console(new RenderedCompactJsonFormatter())
+        .WriteTo.File(new CompactJsonFormatter(), 
+            "logs/log-.json", 
+            rollingInterval: RollingInterval.Day,
+            rollOnFileSizeLimit: true,
+            fileSizeLimitBytes: 10 * 1024 * 1024,
+            retainedFileCountLimit: 30));
+}
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -125,21 +131,25 @@ var app = builder.Build();
 app.UseMiddleware<KestrelApi.Infrastructure.GlobalExceptionHandlingMiddleware>();
 app.UseMiddleware<KestrelApi.Infrastructure.SecurityHeadersMiddleware>();
 
-app.UseSerilogRequestLogging(options =>
+// Add request logging only if not in test environment
+if (!isTestEnvironment)
 {
-    // Customize the message template
-    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
-    
-    // Exclude health check endpoints from logs
-    options.GetLevel = (httpContext, elapsed, ex) => 
+    app.UseSerilogRequestLogging(options =>
     {
-        if (httpContext.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase))
-            return LogEventLevel.Verbose;
-        return ex != null || httpContext.Response.StatusCode > 499 
-            ? LogEventLevel.Error 
-            : LogEventLevel.Information;
-    };
-});
+        // Customize the message template
+        options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+        
+        // Exclude health check endpoints from logs
+        options.GetLevel = (httpContext, elapsed, ex) => 
+        {
+            if (httpContext.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase))
+                return LogEventLevel.Verbose;
+            return ex != null || httpContext.Response.StatusCode > 499 
+                ? LogEventLevel.Error 
+                : LogEventLevel.Information;
+        };
+    });
+}
 
 app.UseRateLimiter();
 app.UseCors("ApiPolicy");
@@ -157,22 +167,34 @@ app.MapControllers();
 
 try
 {
-    Log.Information("Starting web application");
+    if (!isTestEnvironment)
+    {
+        Log.Information("Starting web application");
+    }
     app.Run();
 }
 catch (HostAbortedException)
 {
     // Expected exception when host is stopped
-    Log.Information("Host stopped");
+    if (!isTestEnvironment)
+    {
+        Log.Information("Host stopped");
+    }
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly");
+    if (!isTestEnvironment)
+    {
+        Log.Fatal(ex, "Application terminated unexpectedly");
+    }
     throw; // Re-throw to ensure proper exit code
 }
 finally
 {
-    Log.CloseAndFlush();
+    if (!isTestEnvironment)
+    {
+        Log.CloseAndFlush();
+    }
 }
 
 public partial class Program { }
