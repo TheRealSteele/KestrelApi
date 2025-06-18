@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -30,7 +31,8 @@ public class SecretsEndpointTests : IClassFixture<KestrelApiFactoryWithAuth0>, I
     public async Task Post_Secrets_Should_Accept_Secret_And_Return_Created()
     {
         // Arrange
-        var token = _jwtGenerator.GenerateToken();
+        var token = _jwtGenerator.GenerateToken(
+            additionalClaims: new[] { new Claim("permissions", "write:secrets") });
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var endpoint = "/secrets";
         var request = new { secret = "my-super-secret-value" };
@@ -46,7 +48,8 @@ public class SecretsEndpointTests : IClassFixture<KestrelApiFactoryWithAuth0>, I
     public async Task Get_Secrets_Should_Return_Previously_Stored_Secrets()
     {
         // Arrange
-        var token = _jwtGenerator.GenerateToken();
+        var token = _jwtGenerator.GenerateToken(
+            additionalClaims: new[] { new Claim("permissions", "write:secrets") });
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var postEndpoint = "/secrets";
         var getEndpoint = "/secrets";
@@ -73,7 +76,8 @@ public class SecretsEndpointTests : IClassFixture<KestrelApiFactoryWithAuth0>, I
     public async Task Post_Secrets_Should_Store_Multiple_Secrets_Concurrently()
     {
         // Arrange
-        var token = _jwtGenerator.GenerateToken();
+        var token = _jwtGenerator.GenerateToken(
+            additionalClaims: new[] { new Claim("permissions", "write:secrets") });
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var postEndpoint = "/secrets";
         var getEndpoint = "/secrets";

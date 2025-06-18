@@ -20,6 +20,7 @@ public class SecretsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "WriteSecrets")]
     public async Task<IActionResult> AddSecret([FromBody] SecretRequest request)
     {
         if (request == null)

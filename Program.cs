@@ -65,7 +65,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.Audience = builder.Configuration["Auth0:Audience"];
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("WriteSecrets", policy =>
+        policy.Requirements.Add(new KestrelApi.Security.PermissionRequirement("write:secrets")));
+});
+
+// Register the authorization handler
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, KestrelApi.Security.PermissionAuthorizationHandler>();
 
 // Add health checks
 builder.Services.AddHttpClient();

@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using FluentAssertions;
 using KestrelApi.IntegrationTests.Infrastructure;
@@ -29,7 +30,8 @@ public class SecretsEndpointAuthTests : IClassFixture<KestrelApiFactoryWithAuth0
     public async Task Post_WithValidJwt_ReturnsCreated()
     {
         // Arrange
-        var token = _jwtGenerator.GenerateToken();
+        var token = _jwtGenerator.GenerateToken(
+            additionalClaims: new[] { new Claim("permissions", "write:secrets") });
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var request = new { secret = "test-secret" };
 
@@ -118,7 +120,8 @@ public class SecretsEndpointAuthTests : IClassFixture<KestrelApiFactoryWithAuth0
     public async Task Get_WithValidJwt_ReturnsOk()
     {
         // Arrange
-        var token = _jwtGenerator.GenerateToken();
+        var token = _jwtGenerator.GenerateToken(
+            additionalClaims: new[] { new Claim("permissions", "write:secrets") });
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         // First, post a secret
@@ -149,8 +152,10 @@ public class SecretsEndpointAuthTests : IClassFixture<KestrelApiFactoryWithAuth0
     public async Task MultipleRequests_WithDifferentUsers_ReturnsDifferentSecrets()
     {
         // Arrange
-        var user1Token = _jwtGenerator.GenerateToken(userId: "user1", email: "user1@test.com");
-        var user2Token = _jwtGenerator.GenerateToken(userId: "user2", email: "user2@test.com");
+        var user1Token = _jwtGenerator.GenerateToken(userId: "user1", email: "user1@test.com",
+            additionalClaims: new[] { new Claim("permissions", "write:secrets") });
+        var user2Token = _jwtGenerator.GenerateToken(userId: "user2", email: "user2@test.com",
+            additionalClaims: new[] { new Claim("permissions", "write:secrets") });
 
         // Post secret as user1
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user1Token);
