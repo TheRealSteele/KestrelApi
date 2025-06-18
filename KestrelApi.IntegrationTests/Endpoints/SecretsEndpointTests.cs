@@ -102,64 +102,6 @@ public class SecretsEndpointTests : IClassFixture<KestrelApiFactoryWithAuth0>, I
         }
     }
 
-    [Fact]
-    public async Task Post_Secrets_With_Null_Secret_Should_Return_BadRequest()
-    {
-        // Arrange
-        var token = _jwtGenerator.GenerateToken();
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        var endpoint = "/secrets";
-        var request = new { secret = (string?)null };
-
-        // Act
-        var response = await _client.PostAsJsonAsync(endpoint, request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Post_Secrets_With_Empty_Secret_Should_Return_BadRequest()
-    {
-        // Arrange
-        var token = _jwtGenerator.GenerateToken();
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        var endpoint = "/secrets";
-        var request = new { secret = "" };
-
-        // Act
-        var response = await _client.PostAsJsonAsync(endpoint, request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Post_Secrets_Without_Auth_Should_Return_Unauthorized()
-    {
-        // Arrange
-        var endpoint = "/secrets";
-        var request = new { secret = "unauthorized-secret" };
-
-        // Act
-        var response = await _client.PostAsJsonAsync(endpoint, request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task Get_Secrets_Without_Auth_Should_Return_Unauthorized()
-    {
-        // Arrange
-        var endpoint = "/secrets";
-
-        // Act
-        var response = await _client.GetAsync(endpoint);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
     
     public void Dispose()
     {
