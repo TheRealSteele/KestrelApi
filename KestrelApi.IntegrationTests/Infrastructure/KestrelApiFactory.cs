@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -54,7 +55,12 @@ public class KestrelApiFactory : WebApplicationFactory<Program>
         // Ensure we can override configuration for tests
         builder.ConfigureHostConfiguration(config =>
         {
-            // Add test-specific configuration here if needed
+            // Add test Auth0 configuration
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Auth0:Domain"] = "https://test-tenant.auth0.com/",
+                ["Auth0:Audience"] = "https://test-api-identifier"
+            });
         });
 
         return base.CreateHost(builder);

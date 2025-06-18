@@ -2,11 +2,13 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace KestrelApi.Secrets;
 
 [Route("secrets")]
 [Authorize]
+[EnableRateLimiting("api")]
 public class SecretsController : SecretsBaseController
 {
     private readonly ISecretsService _secretsService;

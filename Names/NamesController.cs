@@ -2,11 +2,13 @@ using System.Security.Claims;
 using KestrelApi.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace KestrelApi.Names;
 
 [Route("names")]
 [Authorize]
+[EnableRateLimiting("api")]
 public class NamesController : BaseApiController
 {
     private readonly INamesService _namesService;

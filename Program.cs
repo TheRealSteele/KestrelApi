@@ -6,6 +6,7 @@ using HealthChecks.UI.Client;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
+using System.Threading.RateLimiting;
 
 // Configure Serilog early - check if already configured for tests
 if (Log.Logger == null || Log.Logger.GetType().Name == "SilentLogger")
@@ -45,6 +46,44 @@ builder.Services.AddControllers();
 // Add Data Protection for encryption
 builder.Services.AddDataProtection();
 
+// Add rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("api", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 10
+            }));
+    
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 5
+            }));
+});
+
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ApiPolicy", policy =>
+    {
+        policy.WithOrigins("https://localhost:3000", "https://localhost:5001")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
 // Register domain services and repositories
 // Secrets domain
 builder.Services.AddScoped<KestrelApi.Secrets.ISecretsService, KestrelApi.Secrets.SecretsService>();
@@ -83,6 +122,9 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseMiddleware<KestrelApi.Infrastructure.GlobalExceptionHandlingMiddleware>();
+app.UseMiddleware<KestrelApi.Infrastructure.SecurityHeadersMiddleware>();
+
 app.UseSerilogRequestLogging(options =>
 {
     // Customize the message template
@@ -98,6 +140,9 @@ app.UseSerilogRequestLogging(options =>
             : LogEventLevel.Information;
     };
 });
+
+app.UseRateLimiter();
+app.UseCors("ApiPolicy");
 
 if (app.Environment.IsDevelopment())
 {
