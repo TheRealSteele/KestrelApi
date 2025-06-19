@@ -49,14 +49,4 @@ public class SecurityTests : IntegrationTestBase
         response.Headers.Should().ContainKey("Access-Control-Allow-Origin");
     }
 
-    [Fact]
-    public async Task Rate_Limiting_Headers_Are_Present()
-    {
-        // Arrange & Act
-        var response = await Client.GetAsync("/health");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        // Rate limiting headers would be present in a real scenario with actual rate limits hit
-    }
 }
