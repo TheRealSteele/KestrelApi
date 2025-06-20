@@ -11,7 +11,7 @@ using Xunit;
 namespace KestrelApi.IntegrationTests.Endpoints;
 
 [Collection("Auth0Integration")]
-public class SecretsEndpointPermissionTests : IClassFixture<KestrelApiFactoryWithAuth0>, IDisposable
+public sealed class SecretsEndpointPermissionTests : IClassFixture<KestrelApiFactoryWithAuth0>, IDisposable
 {
     private readonly KestrelApiFactoryWithAuth0 _factory;
     private readonly HttpClient _client;
@@ -188,15 +188,6 @@ public class SecretsEndpointPermissionTests : IClassFixture<KestrelApiFactoryWit
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-    
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _client?.Dispose();
-        }
+        _client?.Dispose();
     }
 }
